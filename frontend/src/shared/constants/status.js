@@ -30,11 +30,13 @@ export function deriveUiStatusByWaterLevel(level) {
     return 'safe';
   }
 
-  if (waterLevel <= 3) {
+  // Nilai ini adalah TINGGI AIR sungai (cm), bukan jarak sensor ultrasonic.
+  // Default skala sungai: tinggi maksimum/pemasangan sensor 100 cm.
+  if (waterLevel >= 80) {
     return 'danger';
   }
 
-  if (waterLevel <= 10) {
+  if (waterLevel >= 60) {
     return 'alert';
   }
 

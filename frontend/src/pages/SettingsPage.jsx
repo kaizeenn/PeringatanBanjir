@@ -10,15 +10,9 @@ import {
 const initialConfig = {
   weatherApiBaseUrl: 'https://api.bmkg.go.id/publik/prakiraan-cuaca?adm4=35.29.13.2007',
   weatherApiKey: '',
-<<<<<<< HEAD
   weatherLocationLat: '-7.0167',
   weatherLocationLon: '113.8667',
-=======
   weatherBmkgAdm4: '',
->>>>>>> origin/master
-  tideApiBaseUrl: '',
-  tideApiKey: '',
-  tideStationCode: 'sumenep',
 };
 
 const SettingsPage = () => {
@@ -163,7 +157,6 @@ const SettingsPage = () => {
                 disabled={loadingConfig || isBusy}
               />
             </div>
-<<<<<<< HEAD
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-xs text-muted-foreground">Latitude</label>
@@ -187,19 +180,6 @@ const SettingsPage = () => {
                   disabled={loadingConfig || isBusy}
                 />
               </div>
-=======
-            <div>
-              <label className="text-xs text-muted-foreground">Kode Wilayah BMKG (ADM4)</label>
-              <input
-                name="weatherBmkgAdm4"
-                value={config.weatherBmkgAdm4}
-                onChange={handleConfigChange}
-                placeholder="contoh: 35.29.xx.xxxx"
-                className="w-full mt-1 px-3 py-2 rounded-lg bg-muted border border-border text-card-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:outline-none"
-                disabled={loadingConfig || isBusy}
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">Gunakan kode ADM4 desa/kelurahan BMKG untuk titik prakiraan cuaca.</p>
->>>>>>> origin/master
             </div>
           </div>
 

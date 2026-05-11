@@ -279,6 +279,56 @@ async function getIntegrationConfig() {
   }
 }
 
+function getLocationCodeFromUrl(urlValue) {
+  try {
+    if (!urlValue) return null;
+    const url = new URL(urlValue);
+    return url.searchParams.get('adm4') || url.searchParams.get('adm3') || url.searchParams.get('location') || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function flattenBmkgForecastSlots(cuaca) {
+  if (!Array.isArray(cuaca)) return [];
+
+  return cuaca
+    .flatMap((item) => (Array.isArray(item) ? item : [item]))
+    .flatMap((item) => (Array.isArray(item) ? item : [item]))
+    .filter(Boolean);
+}
+
+function pickBestBmkgEntry(payload) {
+  if (!Array.isArray(payload?.data)) return null;
+
+  const now = new Date();
+  const candidates = [];
+
+  for (const region of payload.data) {
+    const lokasi = region?.lokasi || payload?.lokasi || null;
+    const slots = flattenBmkgForecastSlots(region?.cuaca);
+
+    for (const entry of slots) {
+      const time = toDateSafe(entry?.local_datetime || entry?.utc_datetime || entry?.datetime);
+      candidates.push({ entry, lokasi, time });
+    }
+  }
+
+  if (candidates.length === 0) return null;
+
+  const withTime = candidates.filter((candidate) => candidate.time);
+  if (withTime.length === 0) return candidates[0];
+
+  withTime.sort((a, b) => {
+    const aFuturePenalty = a.time.getTime() < now.getTime() ? 24 * 60 * 60 * 1000 : 0;
+    const bFuturePenalty = b.time.getTime() < now.getTime() ? 24 * 60 * 60 * 1000 : 0;
+    return Math.abs(a.time.getTime() - now.getTime()) + aFuturePenalty
+      - (Math.abs(b.time.getTime() - now.getTime()) + bFuturePenalty);
+  });
+
+  return withTime[0];
+}
+
 async function saveIntegrationConfig(inputConfig = {}) {
   const updates = [];
 

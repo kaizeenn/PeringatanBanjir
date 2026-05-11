@@ -17,6 +17,7 @@ import {
   buildWaterLevelChartData,
 } from '@/features/sensor/utils/sensorMappers';
 import { statusLabels } from '@/shared/constants/status';
+import { useLatestPredictionQuery } from '@/features/predictions/usePredictionQueries';
 const statusColorMap = {
     safe: 'status-badge-safe',
     alert: 'status-badge-alert',
@@ -49,6 +50,23 @@ function formatTideTime(value) {
   return `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
 }
 
+function formatPredictionTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function toNumber(value, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
 const Dashboard = () => {
     const historyQuery = useSensorHistoryQuery();
     const latestQuery = useLatestSensorByDeviceQuery();
@@ -56,6 +74,7 @@ const Dashboard = () => {
     const latestTideQuery = useLatestTideQuery();
     const weatherHistoryQuery = useWeatherHistoryQuery();
     const tideHistoryQuery = useTideHistoryQuery();
+    const latestPredictionQuery = useLatestPredictionQuery();
     const data = useMemo(() => buildDashboardStatus(latestQuery.data, historyQuery.data), [latestQuery.data, historyQuery.data]);
     const waterLevelChartData = useMemo(() => buildWaterLevelChartData(historyQuery.data), [historyQuery.data]);
     const rainfallChartData = useMemo(() => buildRainfallChartData(weatherHistoryQuery.data), [weatherHistoryQuery.data]);
@@ -63,6 +82,15 @@ const Dashboard = () => {
     const notifications = useMemo(() => buildNotificationRows(historyQuery.data), [historyQuery.data]);
     const latestWeather = latestWeatherQuery.data;
     const latestTide = latestTideQuery.data;
+    const latestPrediction = latestPredictionQuery.data;
+    const hasPrediction = Boolean(latestPrediction);
+    const realtimeStatus = hasPrediction ? latestPrediction.status : 'safe';
+    const realtimeWaterLevel = hasPrediction && latestPrediction.predicted_level_cm != null
+      ? toNumber(latestPrediction.predicted_level_cm)
+      : 0;
+    const realtimeProbability = latestPrediction?.flood_probability != null
+      ? toNumber(latestPrediction.flood_probability)
+      : null;
     const rainfallDisplay = useMemo(() => {
       const hasRainfallValue = latestWeather?.rainfall_mm != null && latestWeather?.rainfall_mm !== '';
       const rainfall = Number(latestWeather?.rainfall_mm);
@@ -127,7 +155,7 @@ const Dashboard = () => {
     const stats = [
         { icon: Cpu, label: 'Total Perangkat', value: data.devicesTotal, sub: `${data.devicesOnline} online` },
         { icon: Activity, label: 'Perangkat Online', value: data.devicesOnline, sub: `dari ${data.devicesTotal}` },
-        { icon: Bell, label: 'Notifikasi Hari Ini', value: data.todayNotifications, sub: 'peringatan' },
+        { icon: Bell, label: 'Probabilitas ML', value: realtimeProbability == null ? '-' : `${Math.round(realtimeProbability * 100)}%`, sub: latestPrediction ? 'prediksi terbaru' : 'belum ada prediksi' },
         { icon: TrendingUp, label: 'Rata-rata Tinggi Air', value: `${data.avgWaterLevel} cm`, sub: '24 jam terakhir' },
     ];
     if (
@@ -136,10 +164,11 @@ const Dashboard = () => {
       latestWeatherQuery.isLoading ||
       latestTideQuery.isLoading ||
       weatherHistoryQuery.isLoading ||
-      tideHistoryQuery.isLoading
+      tideHistoryQuery.isLoading ||
+      latestPredictionQuery.isLoading
     ) {
         return (<div className="flood-card">
-        <p className="text-sm text-muted-foreground">Memuat data sensor dari backend...</p>
+        <p className="text-sm text-muted-foreground">Memuat data dashboard dan prediksi model...</p>
       </div>);
     }
     if (
@@ -148,25 +177,28 @@ const Dashboard = () => {
       latestWeatherQuery.isError ||
       latestTideQuery.isError ||
       weatherHistoryQuery.isError ||
-      tideHistoryQuery.isError
+      tideHistoryQuery.isError ||
+      latestPredictionQuery.isError
     ) {
         return (<div className="flood-card border border-status-danger/40">
-        <p className="text-sm text-status-danger">Gagal memuat data sensor. Pastikan backend berjalan di port 3000.</p>
+        <p className="text-sm text-status-danger">Gagal memuat data dashboard/prediksi. Pastikan backend berjalan di port 3000 dan sudah login.</p>
       </div>);
     }
     return (<div className="space-y-6">
       {/* Status banner */}
-      <div className={`rounded-xl p-6 ${statusBgMap[data.status]} text-primary-foreground flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4`}>
+      <div className={`rounded-xl p-6 ${statusBgMap[realtimeStatus]} text-primary-foreground flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4`}>
         <div>
           <p className="text-sm font-medium opacity-90">Status Banjir Saat Ini</p>
-          <h2 className="text-3xl font-bold mt-1">{statusLabels[data.status].toUpperCase()}</h2>
-          <p className="text-sm opacity-80 mt-1">Diperbarui setiap 5 detik (backend realtime)</p>
+          <h2 className="text-3xl font-bold mt-1">{hasPrediction ? statusLabels[realtimeStatus].toUpperCase() : 'BELUM ADA PREDIKSI'}</h2>
+          <p className="text-sm opacity-80 mt-1">
+            Status realtime hanya memakai prediksi model ML{latestPrediction?.prediction_time ? ` · ${formatPredictionTime(latestPrediction.prediction_time)}` : ' · jalankan prediksi terlebih dahulu'}
+          </p>
         </div>
         <div className="flex gap-6">
           <div className="text-center">
             <Droplets className="w-8 h-8 mx-auto mb-1 opacity-80"/>
-            <p className="text-2xl font-bold">{data.waterLevel.toFixed(1)}</p>
-            <p className="text-xs opacity-80">cm (Tinggi Air)</p>
+            <p className="text-2xl font-bold">{hasPrediction ? realtimeWaterLevel.toFixed(1) : '-'}</p>
+            <p className="text-xs opacity-80">cm (Prediksi ML)</p>
           </div>
           <div className="text-center">
             <CloudRain className="w-8 h-8 mx-auto mb-1 opacity-80"/>
@@ -184,7 +216,7 @@ const Dashboard = () => {
 
       {/* Status indicators */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {['safe', 'alert', 'danger'].map(s => (<div key={s} className={`rounded-lg px-4 py-3 text-center font-semibold text-sm ${statusColorMap[s]} ${data.status === s ? 'ring-2 ring-offset-2 ring-offset-background' : 'opacity-50'}`} style={{ ['--tw-ring-color']: undefined }}>
+        {['safe', 'alert', 'danger'].map(s => (<div key={s} className={`rounded-lg px-4 py-3 text-center font-semibold text-sm ${statusColorMap[s]} ${hasPrediction && realtimeStatus === s ? 'ring-2 ring-offset-2 ring-offset-background' : 'opacity-50'}`} style={{ ['--tw-ring-color']: undefined }}>
             {statusLabels[s]}
           </div>))}
       </div>

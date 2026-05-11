@@ -27,7 +27,11 @@ const MQTT_PASSWORD = process.env.MQTT_PASSWORD || '';
 const MQTT_TOPIC_PREFIX = process.env.MQTT_TOPIC_PREFIX || 'floodguard';
 const MQTT_SIMPLE_TOPIC = process.env.MQTT_SIMPLE_TOPIC || 'sensor/ultrasonic';
 const MQTT_DEFAULT_DEVICE_ID = process.env.MQTT_DEFAULT_DEVICE_ID || 'SENSOR-001';
-const MQTT_SENSOR_HEIGHT_CM = process.env.MQTT_SENSOR_HEIGHT_CM;
+// Tinggi pemasangan sensor dari dasar sungai (cm).
+// Sensor ultrasonic membaca JARAK sensor ke permukaan air, sedangkan sistem/model ML butuh TINGGI AIR.
+// Jika tinggi sensor dari dasar sungai = 100 cm dan jarak terbaca = 30 cm,
+// maka tinggi air = 100 - 30 = 70 cm.
+const MQTT_SENSOR_HEIGHT_CM = process.env.MQTT_SENSOR_HEIGHT_CM || 100;
 
 // Topic pattern: floodguard/sensor/+/data (+ is wildcard for device_id)
 const SENSOR_DATA_TOPIC = `${MQTT_TOPIC_PREFIX}/sensor/+/data`;
@@ -35,34 +39,20 @@ const SENSOR_DATA_TOPIC = `${MQTT_TOPIC_PREFIX}/sensor/+/data`;
 let client = null;
 
 /**
- * Determine water status from sensor metric.
- * Prefers distance_cm (smaller means more dangerous),
- * falls back to water_level for legacy payloads.
+ * Tentukan status dari TINGGI AIR sungai (bukan jarak ultrasonic).
+ * Untuk sungai/skala 100 cm:
+ * - < 60 cm  = aman
+ * - 60-79 cm = siaga
+ * - >= 80 cm = bahaya
  */
-const STATUS_DANGER_DISTANCE_CM = 3;
-const STATUS_ALERT_DISTANCE_CM = 10;
+const STATUS_ALERT_WATER_LEVEL_CM = Number(process.env.STATUS_ALERT_WATER_LEVEL_CM || 60);
+const STATUS_DANGER_WATER_LEVEL_CM = Number(process.env.STATUS_DANGER_WATER_LEVEL_CM || 80);
 
-function getWaterStatus(metricValue, metricType = 'water_level') {
-  if (!Number.isFinite(metricValue)) return 'safe';
-
-  if (metricType === 'distance_cm') {
-    if (metricValue <= STATUS_DANGER_DISTANCE_CM) return 'danger';
-    if (metricValue <= STATUS_ALERT_DISTANCE_CM) return 'alert';
-    return 'safe';
-  }
-
-  if (metricValue >= 50) return 'danger';
-  if (metricValue >= 30) return 'alert';
+function getWaterStatus(waterLevelCm) {
+  if (!Number.isFinite(waterLevelCm)) return 'safe';
+  if (waterLevelCm >= STATUS_DANGER_WATER_LEVEL_CM) return 'danger';
+  if (waterLevelCm >= STATUS_ALERT_WATER_LEVEL_CM) return 'alert';
   return 'safe';
-}
-
-function resolveStatusMetric(data, waterLevel) {
-  const distanceCm = toNullableNumber(data.distance_cm);
-  if (distanceCm !== null) {
-    return { value: distanceCm, type: 'distance_cm' };
-  }
-
-  return { value: waterLevel, type: 'water_level' };
 }
 
 /**
@@ -96,7 +86,7 @@ function resolveWaterLevel(payload) {
   const sensorHeight = payloadSensorHeight ?? envSensorHeight;
 
   if (sensorHeight !== null) {
-    return sensorHeight - distanceCm;
+    return Math.max(0, Number((sensorHeight - distanceCm).toFixed(2)));
   }
 
   return distanceCm;
@@ -132,8 +122,7 @@ async function saveSensorData(deviceId, data) {
 
     await ensureDeviceExists(deviceId);
 
-    const statusMetric = resolveStatusMetric(data, waterLevel);
-    const waterStatus = getWaterStatus(statusMetric.value, statusMetric.type);
+    const waterStatus = getWaterStatus(waterLevel);
     
     const query = `
       INSERT INTO sensor_data (device_id, water_level, distance_cm, battery_level, signal_strength, water_status)

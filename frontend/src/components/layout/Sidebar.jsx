@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Activity, BrainCircuit, Cpu, Bell, Users, Settings, ChevronLeft, Droplets } from 'lucide-react';
+import { LayoutDashboard, Activity, BrainCircuit, FlaskConical, Cpu, Bell, Users, Settings, ChevronLeft, Droplets } from 'lucide-react';
 const links = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/sensor', icon: Activity, label: 'Data Sensor' },
     { to: '/prediction', icon: BrainCircuit, label: 'Prediksi ML' },
+    { to: '/model-test', icon: FlaskConical, label: 'Test Model' },
     { to: '/devices', icon: Cpu, label: 'Perangkat' },
     { to: '/notifications', icon: Bell, label: 'Notifikasi' },
     { to: '/users', icon: Users, label: 'User' },

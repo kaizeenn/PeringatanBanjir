@@ -1,0 +1,30 @@
+{
+  "model_type": "XGBoost",
+  "features": [
+    "rainfall_mm",
+    "rainfall_lag1",
+    "rainfall_lag2",
+    "rainfall_3day",
+    "rainfall_7day",
+    "rainfall_30day",
+    "rain_intensity",
+    "tide_max_m",
+    "tide_mean_m",
+    "tide_range_m",
+    "water_level_cm",
+    "month",
+    "day_of_year",
+    "is_wet_season"
+  ],
+  "target": "flood_risk",
+  "classes": {
+    "0": "aman",
+    "1": "waspada",
+    "2": "banjir"
+  },
+  "accuracy": 0.9863,
+  "f1_weighted": 0.9863,
+  "cv_f1": 0.9638,
+  "trained_on": "2026-05-02",
+  "n_samples": 365
+}

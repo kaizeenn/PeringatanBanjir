@@ -87,8 +87,9 @@ export function buildSensorTableRows(historyRows) {
       };
     }
 
-    // Untuk sensor ultrasonic, nilai yang lebih kecil biasanya berarti permukaan air makin naik.
-    const deltaLevel = comparisonRow.waterLevel - row.waterLevel;
+    // waterLevel sudah dinormalisasi menjadi tinggi air sungai.
+    // Nilai lebih besar berarti permukaan air lebih tinggi.
+    const deltaLevel = row.waterLevel - comparisonRow.waterLevel;
 
     if (!Number.isFinite(elapsedMinutes) || elapsedMinutes <= 0) {
       return {

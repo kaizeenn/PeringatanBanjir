@@ -1,0 +1,15 @@
+Model: XGBoost
+Accuracy : 0.9863
+F1 Score : 0.9863
+CV Score : 0.9638
+
+Classification Report:
+              precision    recall  f1-score   support
+
+        aman       1.00      1.00      1.00        66
+     waspada       1.00      0.75      0.86         4
+      banjir       0.75      1.00      0.86         3
+
+    accuracy                           0.99        73
+   macro avg       0.92      0.92      0.90        73
+weighted avg       0.99      0.99      0.99        73

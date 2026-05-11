@@ -7,6 +7,7 @@ import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import SensorPage from "./pages/SensorPage";
 import PredictionPage from "./pages/PredictionPage";
+import ModelTestPage from "./pages/ModelTestPage";
 import DevicesPage from "./pages/DevicesPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import UsersPage from "./pages/UsersPage";
@@ -28,6 +29,7 @@ const App = () => (<QueryClientProvider client={queryClient}>
               <Route path="/" element={<Dashboard />}/>
               <Route path="/sensor" element={<SensorPage />}/>
               <Route path="/prediction" element={<PredictionPage />}/>
+              <Route path="/model-test" element={<ModelTestPage />}/>
               <Route path="/devices" element={<DevicesPage />}/>
               <Route path="/notifications" element={<NotificationsPage />}/>
               <Route path="/users" element={<UsersPage />}/>

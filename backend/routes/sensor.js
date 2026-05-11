@@ -68,28 +68,55 @@ router.get('/:device_id', async (req, res) => {
   }
 });
 
-// POST - terima data dari wokwi
+function toNullableNumber(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getWaterStatus(waterLevelCm) {
+  const alertThreshold = Number(process.env.STATUS_ALERT_WATER_LEVEL_CM || 60);
+  const dangerThreshold = Number(process.env.STATUS_DANGER_WATER_LEVEL_CM || 80);
+
+  if (!Number.isFinite(waterLevelCm)) return 'safe';
+  if (waterLevelCm >= dangerThreshold) return 'danger';
+  if (waterLevelCm >= alertThreshold) return 'alert';
+  return 'safe';
+}
+
+function resolveWaterLevel(body) {
+  const waterLevel = toNullableNumber(body.water_level);
+  if (waterLevel !== null) {
+    return waterLevel;
+  }
+
+  const distanceCm = toNullableNumber(body.distance_cm);
+  if (distanceCm === null) {
+    return null;
+  }
+
+  const sensorHeightCm = toNullableNumber(body.sensor_height_cm) ?? Number(process.env.MQTT_SENSOR_HEIGHT_CM || 100);
+  return Math.max(0, Number((sensorHeightCm - distanceCm).toFixed(2)));
+}
+
+// POST - terima data dari wokwi / ESP32
 router.post('/', async (req, res) => {
   try {
-    const { device_id, water_level } = req.body;
+    const { device_id } = req.body;
+    const parsedWaterLevel = resolveWaterLevel(req.body);
+    const distanceCm = toNullableNumber(req.body.distance_cm);
 
-    if (!device_id || water_level === undefined) {
+    if (!device_id || parsedWaterLevel === null) {
       return res.status(400).json({
-        message: 'Data tidak lengkap'
+        message: 'Data tidak lengkap. Kirim device_id dan water_level atau distance_cm.'
       });
     }
 
-    const parsedWaterLevel = Number(water_level);
-
-    if (Number.isNaN(parsedWaterLevel)) {
-      return res.status(400).json({
-        message: 'water_level harus berupa angka'
-      });
-    }
+    const waterStatus = getWaterStatus(parsedWaterLevel);
 
     const [result] = await db.query(
-      'INSERT INTO sensor_data (device_id, water_level) VALUES (?, ?)',
-      [device_id, parsedWaterLevel]
+      'INSERT INTO sensor_data (device_id, water_level, distance_cm, water_status) VALUES (?, ?, ?, ?)',
+      [device_id, parsedWaterLevel, distanceCm, waterStatus]
     );
 
     const [insertedRows] = await db.query(
